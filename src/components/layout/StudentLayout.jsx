@@ -15,7 +15,10 @@ export default function StudentLayout() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="text-gray-600 font-medium">
+             <Link to="/admin/login" className="text-sm text-gray-500 hover:text-red-600 font-medium transition-colors">
+              Admin Login
+            </Link>
+            <div className="text-gray-600 font-medium hidden sm:block">
               Test Taker ID: <span className="text-black font-mono">{student ? student.id.substring(0, 8) : 'GUEST'}</span>
             </div>
             <div className="text-gray-400">
