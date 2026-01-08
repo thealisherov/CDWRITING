@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { FaClock, FaCheck, FaPenNib } from 'react-icons/fa'
+import { FaClock, FaCheck } from 'react-icons/fa'
 
 function Timer({ durationMinutes, onTimeUp }) {
   const [timeLeft, setTimeLeft] = useState(durationMinutes * 60)
@@ -34,7 +34,7 @@ export default function WritingTest() {
   const navigate = useNavigate()
   const { student, endTest } = useAuth()
 
-  const [activeTask, setActiveTask] = useState('task1') // task1 or task2
+  const [activeTask, setActiveTask] = useState('task1')
   const [task1Content, setTask1Content] = useState('')
   const [task2Content, setTask2Content] = useState('')
 
@@ -44,7 +44,14 @@ export default function WritingTest() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const hasAutoSubmitted = useRef(false)
 
-  // Fetch test details
+  // Agar student yo'q bo'lsa, test listga qaytarish
+  useEffect(() => {
+    if (!student) {
+      alert('Iltimos, avval ism-familiyangizni kiriting')
+      navigate('/')
+    }
+  }, [student, navigate])
+
   const { data: test, isLoading, error } = useQuery({
     queryKey: ['test', testId],
     queryFn: async () => {
@@ -55,7 +62,6 @@ export default function WritingTest() {
         .single()
       if (error) throw error
 
-      // Try to parse description as JSON
       try {
         const parsed = JSON.parse(data.description)
         if (parsed.task1 && parsed.task2) {
@@ -64,7 +70,6 @@ export default function WritingTest() {
             data.task2 = parsed.task2
         }
       } catch (e) {
-        // Not JSON, assume legacy single task
         data.isStructured = false
       }
       return data
@@ -83,7 +88,6 @@ export default function WritingTest() {
     mutationFn: async ({ auto = false }) => {
       if (!student) throw new Error("No student session")
 
-      // Combine content for backward compatibility with 'content' column
       const combinedContent = `=== TASK 1 ===\n\n${task1Content}\n\n=== TASK 2 ===\n\n${task2Content}`
       const totalWords = wordCount1 + wordCount2
 
@@ -91,10 +95,10 @@ export default function WritingTest() {
         .from('submissions')
         .insert([{
           test_id: testId,
-          student_id: student.id,
-          student_email: student.email,
-          student_name: 'Student ' + student.id.substring(0,6),
-          content: combinedContent, // Legacy column
+          student_id: null, // UUID emas, NULL yuboramiz
+          student_name: student.name,
+          student_email: null,
+          content: combinedContent,
           word_count: totalWords,
           auto_submitted: auto,
           submitted_at: new Date()
@@ -105,10 +109,10 @@ export default function WritingTest() {
     onSuccess: () => {
       endTest()
       navigate('/')
-      alert('Test submitted successfully!')
+      alert('Test muvaffaqiyatli yuborildi!')
     },
     onError: (err) => {
-      alert('Submission failed: ' + err.message)
+      alert('Yuborishda xatolik: ' + err.message)
       setIsSubmitting(false)
     }
   })
@@ -120,20 +124,19 @@ export default function WritingTest() {
     submitMutation.mutate({ auto })
   }
 
+  if (!student) return null
   if (isLoading) return <div className="text-center p-12">Loading test environment...</div>
   if (error) return <div className="text-center p-12 text-red-600">Error: {error.message}</div>
 
   const currentTaskData = test.isStructured
     ? (activeTask === 'task1' ? test.task1 : test.task2)
-    : { description: test.description, image_url: test.image_url } // Legacy fallback
+    : { description: test.description, image_url: test.image_url }
 
   return (
     <div className="flex-1 flex flex-col h-[calc(100vh-64px)] overflow-hidden">
-        {/* Info Bar */}
         <div className="bg-gray-100 border-b border-gray-200 px-6 py-2 flex justify-between items-center text-sm shadow-sm z-10">
             <div className="font-bold text-gray-700 truncate max-w-md">{test.title}</div>
 
-            {/* Task Tabs */}
             <div className="flex bg-gray-200 rounded-lg p-1 gap-1">
                 <button
                     onClick={() => setActiveTask('task1')}
@@ -150,6 +153,9 @@ export default function WritingTest() {
             </div>
 
             <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-600">
+                    <strong>{student.name}</strong>
+                </div>
                 <div className="flex items-center gap-2 font-mono">
                     <FaClock className="text-gray-500" />
                     <Timer durationMinutes={test.duration} onTimeUp={() => handleSubmit(true)} />
@@ -157,9 +163,7 @@ export default function WritingTest() {
             </div>
         </div>
 
-        {/* Split Screen */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-            {/* Left Panel: Task */}
             <div className="w-full md:w-1/2 overflow-y-auto p-8 border-r border-gray-200 bg-white">
                 <div className="prose max-w-none">
                     <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -182,10 +186,8 @@ export default function WritingTest() {
                 </div>
             </div>
 
-            {/* Right Panel: Writing Area */}
             <div className="w-full md:w-1/2 flex flex-col bg-gray-50 relative">
                 <div className="flex-1 p-6">
-                   {/* Task 1 Area */}
                    <textarea
                         style={{ display: activeTask === 'task1' ? 'block' : 'none' }}
                         value={task1Content}
@@ -195,7 +197,6 @@ export default function WritingTest() {
                         spellCheck="false"
                     />
 
-                    {/* Task 2 Area */}
                     <textarea
                         style={{ display: activeTask === 'task2' ? 'block' : 'none' }}
                         value={task2Content}
@@ -206,7 +207,6 @@ export default function WritingTest() {
                     />
                 </div>
 
-                {/* Footer Controls */}
                 <div className="bg-white border-t border-gray-200 p-4 flex justify-between items-center px-8">
                     <div className="text-gray-600 font-medium text-sm flex gap-4">
                         <span className={activeTask === 'task1' ? 'text-red-600 font-bold' : ''}>
