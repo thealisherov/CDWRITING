@@ -290,7 +290,7 @@ export default function EditTest() {
             <button
               type="submit"
               disabled={updateTestMutation.isPending}
-              className="w-full bg-red-600 text-white py-3 px-4 rounded-md hover:bg-red-700 transition-colors font-medium flex justify-center items-center gap-2"
+              className="w-full bg-red-600 text-white py-3 px-4 rounded-md hover:bg-red-700 transition-colors font-medium flex justify-center items-center gap-2 cursor-pointer"
             >
               {updateTestMutation.isPending && <FaSpinner className="animate-spin" />}
               Update Test

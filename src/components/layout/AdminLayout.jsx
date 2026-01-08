@@ -60,7 +60,7 @@ export default function AdminLayout() {
         <div className="p-4 border-t border-slate-700">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 w-full text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors"
+            className="flex items-center gap-3 px-4 py-3 w-full text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors cursor-pointer"
           >
             <FaSignOutAlt />
             <span>Logout</span>

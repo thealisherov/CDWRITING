@@ -119,7 +119,7 @@ export default function AdminDashboard() {
                                     </Link>
                                     <button
                                         onClick={() => handleDelete(test.id)}
-                                        className="text-red-600 hover:text-red-800 p-1"
+                                        className="text-red-600 hover:text-red-800 p-1 cursor-pointer"
                                         title="Delete"
                                     >
                                         <FaTrash size={16} />

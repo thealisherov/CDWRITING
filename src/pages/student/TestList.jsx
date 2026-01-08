@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { FaClock, FaPenNib, FaTimes } from 'react-icons/fa'
+import toast, { Toaster } from 'react-hot-toast'
 
 export default function TestList() {
   const { startTest } = useAuth()
@@ -33,7 +34,7 @@ export default function TestList() {
   const handleSubmitName = async (e) => {
     e.preventDefault()
     if (!fullName.trim()) {
-      alert('Iltimos, ism-familiyangizni kiriting')
+      toast.error('Iltimos, ism-familiyangizni kiriting')
       return
     }
     
@@ -42,7 +43,7 @@ export default function TestList() {
       setShowModal(false)
       navigate(`/test/${selectedTestId}`)
     } catch (e) {
-      alert('Xatolik yuz berdi: ' + e.message)
+      toast.error('Xatolik yuz berdi: ' + e.message)
     }
   }
 
@@ -74,6 +75,7 @@ export default function TestList() {
 
   return (
     <>
+      <Toaster position="top-center" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold text-gray-900">Available Writing Tests</h1>
@@ -105,7 +107,7 @@ export default function TestList() {
 
                 <button
                   onClick={() => handleStartClick(test.id)}
-                  className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors mt-auto"
+                  className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors mt-auto cursor-pointer"
                 >
                   Start Test
                 </button>
@@ -128,7 +130,7 @@ export default function TestList() {
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6 text-white relative">
               <button 
                 onClick={() => setShowModal(false)}
-                className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors"
+                className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors cursor-pointer"
               >
                 <FaTimes size={20} />
               </button>
@@ -156,13 +158,13 @@ export default function TestList() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium cursor-pointer"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium cursor-pointer"
                 >
                   Testni boshlash
                 </button>

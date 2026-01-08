@@ -78,7 +78,7 @@ export default function Submissions() {
                   <td className="px-6 py-4 text-right flex justify-end gap-2">
                     <button
                       onClick={() => setSelectedSubmission(sub)}
-                      className="text-blue-600 hover:text-blue-800 p-2"
+                      className="text-blue-600 hover:text-blue-800 p-2 cursor-pointer"
                       title="View Details"
                     >
                       <FaEye />
@@ -89,7 +89,7 @@ export default function Submissions() {
                               deleteMutation.mutate(sub.id)
                           }
                       }}
-                      className="text-red-600 hover:text-red-800 p-2"
+                      className="text-red-600 hover:text-red-800 p-2 cursor-pointer"
                       title="Delete"
                     >
                       <FaTrash />
@@ -119,7 +119,7 @@ export default function Submissions() {
                     </h3>
                     <button
                         onClick={() => setSelectedSubmission(null)}
-                        className="text-gray-500 hover:text-gray-700 p-1"
+                        className="text-gray-500 hover:text-gray-700 p-1 cursor-pointer"
                     >
                         <FaTimes size={20} />
                     </button>
@@ -152,7 +152,7 @@ export default function Submissions() {
                 <div className="p-4 border-t bg-gray-50 rounded-b-lg flex justify-end">
                     <button
                         onClick={() => setSelectedSubmission(null)}
-                        className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition"
+                        className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition cursor-pointer"
                     >
                         Close
                     </button>

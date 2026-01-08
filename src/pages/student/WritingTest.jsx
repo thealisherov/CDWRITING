@@ -3,10 +3,18 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { FaClock, FaCheck, FaGripLinesVertical } from 'react-icons/fa'
+import { FaClock, FaCheck, FaGripLinesVertical, FaSave, FaExclamationTriangle } from 'react-icons/fa'
+import toast, { Toaster } from 'react-hot-toast'
 
-function Timer({ durationMinutes, onTimeUp }) {
-  const [timeLeft, setTimeLeft] = useState(durationMinutes * 60)
+function Timer({ durationMinutes, onTimeUp, startTime }) {
+  const [timeLeft, setTimeLeft] = useState(() => {
+    if (startTime) {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000)
+      const remaining = (durationMinutes * 60) - elapsed
+      return Math.max(0, remaining)
+    }
+    return durationMinutes * 60
+  })
 
   useEffect(() => {
     if (timeLeft <= 0) {
@@ -14,7 +22,13 @@ function Timer({ durationMinutes, onTimeUp }) {
       return
     }
     const timer = setInterval(() => {
-      setTimeLeft(prev => prev - 1)
+      setTimeLeft(prev => {
+        const newTime = prev - 1
+        if (newTime <= 0) {
+          onTimeUp()
+        }
+        return newTime
+      })
     }, 1000)
     return () => clearInterval(timer)
   }, [timeLeft, onTimeUp])
@@ -37,6 +51,8 @@ export default function WritingTest() {
   const [activeTask, setActiveTask] = useState('task1')
   const [task1Content, setTask1Content] = useState('')
   const [task2Content, setTask2Content] = useState('')
+  const [testStartTime, setTestStartTime] = useState(null)
+  const [lastSaved, setLastSaved] = useState(null)
 
   const [wordCount1, setWordCount1] = useState(0)
   const [wordCount2, setWordCount2] = useState(0)
@@ -49,12 +65,59 @@ export default function WritingTest() {
   const [leftWidth, setLeftWidth] = useState(50)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [isResizing, setIsResizing] = useState(false)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+
+  // Local Storage key
+  const storageKey = `test_${testId}_${student?.id}`
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768)
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  // Load saved data from localStorage
+  useEffect(() => {
+    if (!student || !testId) return
+
+    const savedData = localStorage.getItem(storageKey)
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData)
+        setTask1Content(parsed.task1Content || '')
+        setTask2Content(parsed.task2Content || '')
+        setTestStartTime(parsed.startTime || Date.now())
+        setActiveTask(parsed.activeTask || 'task1')
+        console.log('✅ Saqlangan ma\'lumot yuklandi')
+      } catch (e) {
+        console.error('❌ Saqlangan ma\'lumotni yuklashda xatolik:', e)
+        setTestStartTime(Date.now())
+      }
+    } else {
+      setTestStartTime(Date.now())
+    }
+  }, [student, testId, storageKey])
+
+  // Auto-save to localStorage
+  useEffect(() => {
+    if (!student || !testId || !testStartTime) return
+
+    const saveData = {
+      task1Content,
+      task2Content,
+      activeTask,
+      startTime: testStartTime,
+      lastUpdated: Date.now()
+    }
+
+    localStorage.setItem(storageKey, JSON.stringify(saveData))
+    setLastSaved(Date.now())
+  }, [task1Content, task2Content, activeTask, testStartTime, student, testId, storageKey])
+
+  // Clear localStorage on successful submit
+  const clearSavedData = () => {
+    localStorage.removeItem(storageKey)
+  }
 
   const startResizing = (e) => {
     e.preventDefault()
@@ -84,10 +147,8 @@ export default function WritingTest() {
     document.addEventListener('mouseup', handleMouseUp)
   }
 
-  // Agar student yo'q bo'lsa, test listga qaytarish
   useEffect(() => {
     if (!student) {
-      alert('Iltimos, avval ism-familiyangizni kiriting')
       navigate('/')
     }
   }, [student, navigate])
@@ -135,7 +196,7 @@ export default function WritingTest() {
         .from('submissions')
         .insert([{
           test_id: testId,
-          student_id: null, // UUID emas, NULL yuboramiz
+          student_id: null,
           student_name: student.name,
           student_email: null,
           content: combinedContent,
@@ -147,21 +208,33 @@ export default function WritingTest() {
       if (error) throw error
     },
     onSuccess: () => {
+      clearSavedData()
       endTest()
       navigate('/')
-      alert('Test muvaffaqiyatli yuborildi!')
+      toast.success('Test muvaffaqiyatli yuborildi!')
     },
     onError: (err) => {
-      alert('Yuborishda xatolik: ' + err.message)
+      toast.error('Yuborishda xatolik: ' + err.message)
       setIsSubmitting(false)
     }
   })
 
   const handleSubmit = (auto = false) => {
     if (isSubmitting || hasAutoSubmitted.current) return
-    if (auto) hasAutoSubmitted.current = true
+    
+    if (auto) {
+      hasAutoSubmitted.current = true
+      setIsSubmitting(true)
+      submitMutation.mutate({ auto })
+    } else {
+      setShowConfirmModal(true)
+    }
+  }
+
+  const confirmSubmit = () => {
+    setShowConfirmModal(false)
     setIsSubmitting(true)
-    submitMutation.mutate({ auto })
+    submitMutation.mutate({ auto: false })
   }
 
   if (!student) return null
@@ -174,31 +247,42 @@ export default function WritingTest() {
 
   return (
     <div className="flex-1 flex flex-col h-[calc(100vh-64px)] overflow-hidden">
+        <Toaster position="top-center" />
         <div className="bg-gray-100 border-b border-gray-200 px-6 py-2 flex justify-between items-center text-sm shadow-sm z-10">
             <div className="font-bold text-gray-700 truncate max-w-md">{test.title}</div>
 
             <div className="flex bg-gray-200 rounded-lg p-1 gap-1">
                 <button
                     onClick={() => setActiveTask('task1')}
-                    className={`px-4 py-1 rounded-md text-sm font-medium transition-all ${activeTask === 'task1' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    className={`px-4 py-1 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTask === 'task1' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                     Task 1
                 </button>
                 <button
                     onClick={() => setActiveTask('task2')}
-                    className={`px-4 py-1 rounded-md text-sm font-medium transition-all ${activeTask === 'task2' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    className={`px-4 py-1 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTask === 'task2' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                     Task 2
                 </button>
             </div>
 
             <div className="flex items-center gap-4">
+                {lastSaved && (
+                    <div className="text-xs text-green-600 flex items-center gap-1">
+                        <FaSave size={10} />
+                        Auto-saved
+                    </div>
+                )}
                 <div className="text-sm text-gray-600">
                     <strong>{student.name}</strong>
                 </div>
                 <div className="flex items-center gap-2 font-mono">
                     <FaClock className="text-gray-500" />
-                    <Timer durationMinutes={test.duration} onTimeUp={() => handleSubmit(true)} />
+                    <Timer 
+                        durationMinutes={test.duration} 
+                        onTimeUp={() => handleSubmit(true)}
+                        startTime={testStartTime}
+                    />
                 </div>
             </div>
         </div>
@@ -273,7 +357,7 @@ export default function WritingTest() {
                     <button
                         onClick={() => handleSubmit(false)}
                         disabled={isSubmitting}
-                        className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md transition-colors font-medium flex items-center gap-2 shadow-sm"
+                        className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md transition-colors font-medium flex items-center gap-2 shadow-sm cursor-pointer"
                         title="Submit Test"
                     >
                         <FaCheck size={16} />
@@ -282,6 +366,37 @@ export default function WritingTest() {
                 </div>
             </div>
         </div>
+
+        {/* Confirmation Modal */}
+        {showConfirmModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all scale-100">
+                    <div className="p-6 text-center">
+                        <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                            <FaExclamationTriangle className="h-6 w-6 text-red-600" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">Testni yakunlash</h3>
+                        <p className="text-sm text-gray-500 mb-6">
+                            Siz haqiqatdan ham testni yakunlamoqchimisiz?
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowConfirmModal(false)}
+                                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium cursor-pointer"
+                            >
+                                Bekor qilish
+                            </button>
+                            <button
+                                onClick={confirmSubmit}
+                                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium cursor-pointer"
+                            >
+                                Yakunlash
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
   )
 }
