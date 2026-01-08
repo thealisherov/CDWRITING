@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { useNavigate } from 'react-router-dom'
-import { FaLock } from 'react-icons/fa'
+import { useNavigate, Link } from 'react-router-dom'
+import { FaLock, FaArrowLeft } from 'react-icons/fa'
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('')
@@ -23,8 +23,11 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
-        <div className="bg-slate-900 p-6 text-center">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden relative">
+        <div className="bg-slate-900 p-6 text-center relative">
+          <Link to="/" className="absolute top-6 left-6 text-slate-400 hover:text-white transition-colors">
+            <FaArrowLeft size={20} />
+          </Link>
           <h1 className="text-3xl font-bold text-red-500">IELTS<span className="text-white">Admin</span></h1>
           <p className="text-slate-400 mt-2">Secure Access Portal</p>
         </div>
@@ -66,6 +69,12 @@ export default function AdminLogin() {
             Login
           </button>
         </form>
+
+        <div className="p-4 text-center border-t border-gray-100">
+            <Link to="/" className="text-sm text-gray-500 hover:text-red-600">
+                Back to Student Home
+            </Link>
+        </div>
       </div>
     </div>
   )
