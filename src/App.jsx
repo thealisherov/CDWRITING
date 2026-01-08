@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import AdminLogin from './pages/admin/AdminLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import CreateTest from './pages/admin/CreateTest'
+import EditTest from './pages/admin/EditTest'
 import Submissions from './pages/admin/Submissions'
 import TestList from './pages/student/TestList'
 import WritingTest from './pages/student/WritingTest'
@@ -36,6 +37,7 @@ function App() {
               <Route element={<ProtectedAdminRoute />}>
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="create-test" element={<CreateTest />} />
+                <Route path="edit-test/:testId" element={<EditTest />} />
                 <Route path="submissions" element={<Submissions />} />
                 <Route index element={<Navigate to="/admin/dashboard" replace />} />
               </Route>
