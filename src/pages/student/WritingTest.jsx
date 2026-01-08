@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { FaClock, FaCheck } from 'react-icons/fa'
+import { FaClock, FaCheck, FaGripLinesVertical } from 'react-icons/fa'
 
 function Timer({ durationMinutes, onTimeUp }) {
   const [timeLeft, setTimeLeft] = useState(durationMinutes * 60)
@@ -43,6 +43,46 @@ export default function WritingTest() {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const hasAutoSubmitted = useRef(false)
+
+  // Resizing state
+  const containerRef = useRef(null)
+  const [leftWidth, setLeftWidth] = useState(50)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  const [isResizing, setIsResizing] = useState(false)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const startResizing = (e) => {
+    e.preventDefault()
+    setIsResizing(true)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    const handleMouseMove = (moveEvent) => {
+      if (containerRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect()
+        const newWidth = ((moveEvent.clientX - containerRect.left) / containerRect.width) * 100
+        if (newWidth >= 20 && newWidth <= 80) {
+          setLeftWidth(newWidth)
+        }
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+      document.body.style.cursor = 'default'
+      document.body.style.userSelect = 'auto'
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+  }
 
   // Agar student yo'q bo'lsa, test listga qaytarish
   useEffect(() => {
@@ -163,8 +203,11 @@ export default function WritingTest() {
             </div>
         </div>
 
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-            <div className="w-full md:w-1/2 overflow-y-auto p-8 border-r border-gray-200 bg-white">
+        <div ref={containerRef} className="flex-1 flex flex-col md:flex-row overflow-hidden">
+            <div 
+                className="w-full md:w-auto overflow-y-auto p-8 border-r border-gray-200 bg-white"
+                style={{ width: isMobile ? '100%' : `${leftWidth}%` }}
+            >
                 <div className="prose max-w-none">
                     <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                         {activeTask === 'task1' ? (
@@ -186,7 +229,16 @@ export default function WritingTest() {
                 </div>
             </div>
 
-            <div className="w-full md:w-1/2 flex flex-col bg-gray-50 relative">
+            {!isMobile && (
+                <div
+                    className={`w-3 bg-gray-50 hover:bg-red-100 cursor-col-resize flex items-center justify-center border-l border-r border-gray-200 z-20 transition-colors ${isResizing ? 'bg-red-100' : ''}`}
+                    onMouseDown={startResizing}
+                >
+                    <FaGripLinesVertical className="text-gray-300" size={14} />
+                </div>
+            )}
+
+            <div className="flex-1 flex flex-col bg-gray-50 relative min-w-0">
                 <div className="flex-1 p-6">
                    <textarea
                         style={{ display: activeTask === 'task1' ? 'block' : 'none' }}
