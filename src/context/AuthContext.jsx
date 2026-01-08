@@ -45,7 +45,8 @@ export function AuthProvider({ children }) {
 
   const startTest = async () => {
     // Create a one-time user
-    const tempEmail = `student_${Date.now()}_${Math.random().toString(36).substring(7)}@temp.ielts.platform`
+    // Use .com domain to ensure it passes email validation regex
+    const tempEmail = `student_${Date.now()}_${Math.random().toString(36).substring(7)}@ielts-temp.com`
     const tempPassword = `pass_${Math.random().toString(36).substring(7)}`
 
     const { data, error } = await supabase.auth.signUp({
