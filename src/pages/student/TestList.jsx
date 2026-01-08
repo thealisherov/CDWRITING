@@ -29,6 +29,30 @@ export default function TestList() {
     }
   }
 
+  const getTestDescription = (description) => {
+    try {
+      const parsed = JSON.parse(description)
+      if (parsed.task1 && parsed.task2) {
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+               <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-medium">Task 1</span>
+               <span className="text-sm truncate">{parsed.task1.description.substring(0, 50)}...</span>
+            </div>
+            <div className="flex items-center gap-2">
+               <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">Task 2</span>
+               <span className="text-sm truncate">{parsed.task2.description.substring(0, 50)}...</span>
+            </div>
+          </div>
+        )
+      }
+    } catch (e) {
+      // Not JSON, return regular text
+      return <p className="text-gray-500 text-sm mb-6 line-clamp-3 flex-1">{description}</p>
+    }
+    return <p className="text-gray-500 text-sm mb-6 line-clamp-3 flex-1">{description}</p>
+  }
+
   if (isLoading) return <div className="text-center p-12">Loading tests...</div>
   if (error) return <div className="text-center p-12 text-red-600">Error loading tests: {error.message}</div>
 
@@ -56,12 +80,15 @@ export default function TestList() {
             </div>
 
             <div className="p-6 flex-1 flex flex-col">
-              <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2">{test.title}</h3>
-              <p className="text-gray-500 text-sm mb-6 line-clamp-3 flex-1">{test.description}</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-4 line-clamp-2">{test.title}</h3>
+
+              <div className="mb-6 flex-1">
+                {getTestDescription(test.description)}
+              </div>
 
               <button
                 onClick={() => handleStart(test.id)}
-                className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors"
+                className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors mt-auto"
               >
                 Start Test
               </button>
