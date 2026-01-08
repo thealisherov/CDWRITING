@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { FaClock, FaExpandArrowsAlt, FaArrowLeft, FaArrowRight, FaCheck } from 'react-icons/fa'
+import { FaClock, FaCheck, FaPenNib } from 'react-icons/fa'
 
 function Timer({ durationMinutes, onTimeUp }) {
   const [timeLeft, setTimeLeft] = useState(durationMinutes * 60)
@@ -33,8 +33,14 @@ export default function WritingTest() {
   const { testId } = useParams()
   const navigate = useNavigate()
   const { student, endTest } = useAuth()
-  const [content, setContent] = useState('')
-  const [wordCount, setWordCount] = useState(0)
+
+  const [activeTask, setActiveTask] = useState('task1') // task1 or task2
+  const [task1Content, setTask1Content] = useState('')
+  const [task2Content, setTask2Content] = useState('')
+
+  const [wordCount1, setWordCount1] = useState(0)
+  const [wordCount2, setWordCount2] = useState(0)
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const hasAutoSubmitted = useRef(false)
 
@@ -48,29 +54,48 @@ export default function WritingTest() {
         .eq('id', testId)
         .single()
       if (error) throw error
+
+      // Try to parse description as JSON
+      try {
+        const parsed = JSON.parse(data.description)
+        if (parsed.task1 && parsed.task2) {
+            data.isStructured = true
+            data.task1 = parsed.task1
+            data.task2 = parsed.task2
+        }
+      } catch (e) {
+        // Not JSON, assume legacy single task
+        data.isStructured = false
+      }
       return data
     }
   })
 
   useEffect(() => {
-    // Calculate word count
-    const words = content.trim().split(/\s+/).filter(w => w.length > 0).length
-    setWordCount(words)
-  }, [content])
+    const words1 = task1Content.trim().split(/\s+/).filter(w => w.length > 0).length
+    setWordCount1(words1)
+
+    const words2 = task2Content.trim().split(/\s+/).filter(w => w.length > 0).length
+    setWordCount2(words2)
+  }, [task1Content, task2Content])
 
   const submitMutation = useMutation({
     mutationFn: async ({ auto = false }) => {
       if (!student) throw new Error("No student session")
+
+      // Combine content for backward compatibility with 'content' column
+      const combinedContent = `=== TASK 1 ===\n\n${task1Content}\n\n=== TASK 2 ===\n\n${task2Content}`
+      const totalWords = wordCount1 + wordCount2
 
       const { error } = await supabase
         .from('submissions')
         .insert([{
           test_id: testId,
           student_id: student.id,
-          student_email: student.email, // Or store some identifier
+          student_email: student.email,
           student_name: 'Student ' + student.id.substring(0,6),
-          content: content,
-          word_count: wordCount,
+          content: combinedContent, // Legacy column
+          word_count: totalWords,
           auto_submitted: auto,
           submitted_at: new Date()
         }])
@@ -78,7 +103,7 @@ export default function WritingTest() {
       if (error) throw error
     },
     onSuccess: () => {
-      endTest() // Sign out / delete user
+      endTest()
       navigate('/')
       alert('Test submitted successfully!')
     },
@@ -98,13 +123,34 @@ export default function WritingTest() {
   if (isLoading) return <div className="text-center p-12">Loading test environment...</div>
   if (error) return <div className="text-center p-12 text-red-600">Error: {error.message}</div>
 
+  const currentTaskData = test.isStructured
+    ? (activeTask === 'task1' ? test.task1 : test.task2)
+    : { description: test.description, image_url: test.image_url } // Legacy fallback
+
   return (
     <div className="flex-1 flex flex-col h-[calc(100vh-64px)] overflow-hidden">
         {/* Info Bar */}
-        <div className="bg-gray-100 border-b border-gray-200 px-6 py-2 flex justify-between items-center text-sm">
-            <div className="font-bold text-gray-700">{test.title}</div>
+        <div className="bg-gray-100 border-b border-gray-200 px-6 py-2 flex justify-between items-center text-sm shadow-sm z-10">
+            <div className="font-bold text-gray-700 truncate max-w-md">{test.title}</div>
+
+            {/* Task Tabs */}
+            <div className="flex bg-gray-200 rounded-lg p-1 gap-1">
+                <button
+                    onClick={() => setActiveTask('task1')}
+                    className={`px-4 py-1 rounded-md text-sm font-medium transition-all ${activeTask === 'task1' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Task 1
+                </button>
+                <button
+                    onClick={() => setActiveTask('task2')}
+                    className={`px-4 py-1 rounded-md text-sm font-medium transition-all ${activeTask === 'task2' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Task 2
+                </button>
+            </div>
+
             <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 font-mono">
                     <FaClock className="text-gray-500" />
                     <Timer durationMinutes={test.duration} onTimeUp={() => handleSubmit(true)} />
                 </div>
@@ -116,53 +162,71 @@ export default function WritingTest() {
             {/* Left Panel: Task */}
             <div className="w-full md:w-1/2 overflow-y-auto p-8 border-r border-gray-200 bg-white">
                 <div className="prose max-w-none">
-                    <h2 className="text-xl font-bold mb-4">Task Instructions</h2>
-                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg mb-6 text-gray-700">
-                        {test.description}
+                    <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                        {activeTask === 'task1' ? (
+                            <><span className="text-red-600">Task 1</span> Instructions</>
+                        ) : (
+                            <><span className="text-blue-600">Task 2</span> Instructions</>
+                        )}
+                    </h2>
+
+                    <div className="p-5 bg-gray-50 border border-gray-200 rounded-lg mb-6 text-gray-700 leading-relaxed shadow-sm">
+                        {currentTaskData.description}
                     </div>
 
-                    {test.image_url && (
+                    {currentTaskData.image_url && (
                         <div className="mb-6">
-                            <img src={test.image_url} alt="Task" className="w-full h-auto rounded-lg border border-gray-200" />
+                            <img src={currentTaskData.image_url} alt="Task" className="w-full h-auto rounded-lg border border-gray-200 shadow-sm" />
                         </div>
                     )}
                 </div>
             </div>
 
             {/* Right Panel: Writing Area */}
-            <div className="w-full md:w-1/2 flex flex-col bg-gray-50">
-                <div className="flex-1 p-8">
+            <div className="w-full md:w-1/2 flex flex-col bg-gray-50 relative">
+                <div className="flex-1 p-6">
+                   {/* Task 1 Area */}
+                   <textarea
+                        style={{ display: activeTask === 'task1' ? 'block' : 'none' }}
+                        value={task1Content}
+                        onChange={(e) => setTask1Content(e.target.value)}
+                        className="w-full h-full p-6 border border-gray-300 rounded-lg shadow-sm resize-none focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-lg leading-relaxed font-serif"
+                        placeholder="Type your response for Task 1 here..."
+                        spellCheck="false"
+                    />
+
+                    {/* Task 2 Area */}
                     <textarea
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
+                        style={{ display: activeTask === 'task2' ? 'block' : 'none' }}
+                        value={task2Content}
+                        onChange={(e) => setTask2Content(e.target.value)}
                         className="w-full h-full p-6 border border-gray-300 rounded-lg shadow-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-lg leading-relaxed font-serif"
-                        placeholder="Type your response here..."
+                        placeholder="Type your response for Task 2 here..."
                         spellCheck="false"
                     />
                 </div>
 
                 {/* Footer Controls */}
                 <div className="bg-white border-t border-gray-200 p-4 flex justify-between items-center px-8">
-                    <div className="text-gray-600 font-medium">
-                        Words: <span className="text-black font-bold">{wordCount}</span>
+                    <div className="text-gray-600 font-medium text-sm flex gap-4">
+                        <span className={activeTask === 'task1' ? 'text-red-600 font-bold' : ''}>
+                            Task 1: {wordCount1} words
+                        </span>
+                        <span className="text-gray-300">|</span>
+                        <span className={activeTask === 'task2' ? 'text-blue-600 font-bold' : ''}>
+                            Task 2: {wordCount2} words
+                        </span>
                     </div>
 
-                    <div className="flex gap-4">
-                        {/* Simulation of pagination buttons from screenshot */}
-                         <div className="flex gap-1">
-                             <button className="p-2 bg-gray-200 rounded text-gray-400 cursor-not-allowed"><FaArrowLeft /></button>
-                             <button className="p-2 bg-black text-white rounded"><FaArrowRight /></button>
-                         </div>
-
-                         <button
-                            onClick={() => handleSubmit(false)}
-                            disabled={isSubmitting}
-                            className="bg-gray-200 hover:bg-gray-300 text-gray-800 p-3 rounded-md transition-colors"
-                            title="Submit Test"
-                         >
-                            <FaCheck size={20} />
-                         </button>
-                    </div>
+                    <button
+                        onClick={() => handleSubmit(false)}
+                        disabled={isSubmitting}
+                        className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md transition-colors font-medium flex items-center gap-2 shadow-sm"
+                        title="Submit Test"
+                    >
+                        <FaCheck size={16} />
+                        Submit All
+                    </button>
                 </div>
             </div>
         </div>
